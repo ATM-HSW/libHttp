@@ -1,0 +1,10 @@
+{
+    "name": "mbed-http",
+    "config": {
+        "http-buffer-size": {
+            "help": "Size of the HTTP receive buffer in bytes",
+            "value": 2048,
+            "macro_name": "HTTP_RECEIVE_BUFFER_SIZE"
+        }
+    }
+}
