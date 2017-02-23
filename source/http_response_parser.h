@@ -103,8 +103,7 @@ private:
             return 0;
         }
 
-        string s(at, length);
-        response->set_body(s);
+        response->set_body(at, length);
         return 0;
     }
 

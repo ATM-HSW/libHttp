@@ -31,6 +31,14 @@ public:
         concat_header_value = false;
         expected_content_length = 0;
         body_length = 0;
+        body_offset = 0;
+        body = NULL;
+    }
+
+    ~HttpResponse() {
+        if (body != NULL) {
+            free(body);
+        }
     }
 
     void set_status(int a_status_code, string a_status_message) {
@@ -96,16 +104,32 @@ public:
         return header_values;
     }
 
-    void set_body(string v) {
-        body = body + v;
+    void set_body(const char *at, size_t length) {
+        // only malloc when this fn is called, so we don't alloc when body callback's are enabled
+        if (body == NULL) {
+            body = (char*)malloc(expected_content_length);
+        }
+
+        memcpy(body + body_offset, at, length);
+
+        body_offset += length;
     }
 
-    string get_body() {
-        return body;
+    void* get_body() {
+        return (void*)body;
+    }
+
+    string get_body_as_string() {
+        string s(body, body_offset);
+        return s;
     }
 
     void increase_body_length(size_t length) {
         body_length += length;
+    }
+
+    size_t get_body_length() {
+        return body_offset;
     }
 
     bool is_body_complete() {
@@ -134,7 +158,8 @@ private:
 
     size_t expected_content_length;
 
-    string body;
+    char * body;
     size_t body_length;
+    size_t body_offset;
 };
 #endif
