@@ -256,8 +256,8 @@ public:
                 free(recv_buffer);
                 return NULL;
             }
-            // No more chunks? break out of this loop
-            if (_bpos < HTTP_RECEIVE_BUFFER_SIZE) {
+
+            if (_response->is_body_complete()) {
                 break;
             }
         }
