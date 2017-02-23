@@ -127,6 +127,7 @@ public:
         // TCPSocket::recv is called until we don't have any data anymore
         nsapi_size_or_error_t recv_ret;
         while ((recv_ret = socket.recv(recv_buffer, HTTP_RECEIVE_BUFFER_SIZE)) > 0) {
+
             // Pass the chunk into the http_parser
             size_t nparsed = parser.execute((const char*)recv_buffer, recv_ret);
             if (nparsed != recv_ret) {
@@ -135,8 +136,8 @@ public:
                 free(recv_buffer);
                 return NULL;
             }
-            // No more chunks? break out of this loop
-            if (recv_ret < HTTP_RECEIVE_BUFFER_SIZE) {
+
+            if (response->is_body_complete()) {
                 break;
             }
         }

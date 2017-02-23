@@ -29,6 +29,8 @@ public:
         status_code = 0;
         concat_header_field = false;
         concat_header_value = false;
+        expected_content_length = 0;
+        body_length = 0;
     }
 
     void set_status(int a_status_code, string a_status_message) {
@@ -72,6 +74,16 @@ public:
         concat_header_value = true;
     }
 
+    void set_headers_complete() {
+        // @todo: chunked encoding
+        for (size_t ix = 0; ix < header_fields.size(); ix++) {
+            if (strcicmp(header_fields[ix].c_str(), "content-length") == 0) {
+                expected_content_length = (size_t)atoi(header_values[ix].c_str());
+                break;
+            }
+        }
+    }
+
     size_t get_headers_length() {
         return header_fields.size();
     }
@@ -92,7 +104,25 @@ public:
         return body;
     }
 
+    void increase_body_length(size_t length) {
+        body_length += length;
+    }
+
+    bool is_body_complete() {
+        return body_length == expected_content_length;
+    }
+
 private:
+    // from http://stackoverflow.com/questions/5820810/case-insensitive-string-comp-in-c
+    int strcicmp(char const *a, char const *b) {
+        for (;; a++, b++) {
+            int d = tolower(*a) - tolower(*b);
+            if (d != 0 || !*a) {
+                return d;
+            }
+        }
+    }
+
     int status_code;
     string status_message;
 
@@ -102,6 +132,9 @@ private:
     bool concat_header_field;
     bool concat_header_value;
 
+    size_t expected_content_length;
+
     string body;
+    size_t body_length;
 };
 #endif

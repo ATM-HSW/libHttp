@@ -90,11 +90,14 @@ private:
         return 0;
     }
 
-    static int on_headers_complete(http_parser* parser) {
+    int on_headers_complete(http_parser* parser) {
+        response->set_headers_complete();
         return 0;
     }
 
     int on_body(http_parser* parser, const char *at, size_t length) {
+        response->increase_body_length(length);
+
         if (body_callback) {
             body_callback(at, length);
             return 0;
