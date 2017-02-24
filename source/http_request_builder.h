@@ -80,8 +80,14 @@ public:
         char* req = (char*)calloc(size + 1, 1);
         char* originalReq = req;
 
-        sprintf(req, "%s %s%s HTTP/1.1\r\n", method_str, parsed_url->path(), parsed_url->query());
-        req += strlen(method_str) + 1 + strlen(parsed_url->path()) + strlen(parsed_url->query()) + 1 + 8 + 2;
+        if (strcmp(parsed_url->query(), "") == 0) {
+            sprintf(req, "%s %s HTTP/1.1\r\n", method_str, parsed_url->path());
+            req += strlen(method_str) + 1 + strlen(parsed_url->path()) + 1 + 8 + 2;
+        }
+        else {
+            sprintf(req, "%s %s?%s HTTP/1.1\r\n", method_str, parsed_url->path(), parsed_url->query());
+            req += strlen(method_str) + 1 + strlen(parsed_url->path()) + 1 + strlen(parsed_url->query()) + 1 + 8 + 2;
+        }
 
         typedef map<string, string>::iterator it_type;
         for(it_type it = headers.begin(); it != headers.end(); it++) {

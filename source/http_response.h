@@ -30,6 +30,8 @@ public:
         concat_header_field = false;
         concat_header_value = false;
         expected_content_length = 0;
+        is_chunked = false;
+        is_message_completed = false;
         body_length = 0;
         body_offset = 0;
         body = NULL;
@@ -38,6 +40,11 @@ public:
     ~HttpResponse() {
         if (body != NULL) {
             free(body);
+        }
+
+        for (size_t ix = 0; ix < header_fields.size(); ix++) {
+            delete header_fields[ix];
+            delete header_values[ix];
         }
     }
 
@@ -59,10 +66,10 @@ public:
 
         // headers can be chunked
         if (concat_header_field) {
-            header_fields[header_fields.size() - 1] = header_fields[header_fields.size() - 1] + field;
+            *header_fields[header_fields.size() - 1] = (*header_fields[header_fields.size() - 1]) + field;
         }
         else {
-            header_fields.push_back(field);
+            header_fields.push_back(new string(field));
         }
 
         concat_header_field = true;
@@ -73,20 +80,19 @@ public:
 
         // headers can be chunked
         if (concat_header_value) {
-            header_values[header_values.size() - 1] = header_values[header_values.size() - 1] + value;
+            *header_values[header_values.size() - 1] = (*header_values[header_values.size() - 1]) + value;
         }
         else {
-            header_values.push_back(value);
+            header_values.push_back(new string(value));
         }
 
         concat_header_value = true;
     }
 
     void set_headers_complete() {
-        // @todo: chunked encoding
         for (size_t ix = 0; ix < header_fields.size(); ix++) {
-            if (strcicmp(header_fields[ix].c_str(), "content-length") == 0) {
-                expected_content_length = (size_t)atoi(header_values[ix].c_str());
+            if (strcicmp(header_fields[ix]->c_str(), "content-length") == 0) {
+                expected_content_length = (size_t)atoi(header_values[ix]->c_str());
                 break;
             }
         }
@@ -96,18 +102,27 @@ public:
         return header_fields.size();
     }
 
-    vector<string> get_headers_fields() {
+    vector<string*> get_headers_fields() {
         return header_fields;
     }
 
-    vector<string> get_headers_values() {
+    vector<string*> get_headers_values() {
         return header_values;
     }
 
     void set_body(const char *at, size_t length) {
         // only malloc when this fn is called, so we don't alloc when body callback's are enabled
-        if (body == NULL) {
+        if (body == NULL && !is_chunked) {
             body = (char*)malloc(expected_content_length);
+        }
+
+        if (is_chunked) {
+            if (body == NULL) {
+                body = (char*)malloc(length);
+            }
+            else {
+                body = (char*)realloc(body, body_offset + length);
+            }
         }
 
         memcpy(body + body_offset, at, length);
@@ -132,8 +147,16 @@ public:
         return body_offset;
     }
 
-    bool is_body_complete() {
-        return body_length == expected_content_length;
+    bool is_message_complete() {
+        return is_message_completed;
+    }
+
+    void set_chunked() {
+        is_chunked = true;
+    }
+
+    void set_message_complete() {
+        is_message_completed = true;
     }
 
 private:
@@ -150,13 +173,17 @@ private:
     int status_code;
     string status_message;
 
-    vector<string> header_fields;
-    vector<string> header_values;
+    vector<string*> header_fields;
+    vector<string*> header_values;
 
     bool concat_header_field;
     bool concat_header_value;
 
     size_t expected_content_length;
+
+    bool is_chunked;
+
+    bool is_message_completed;
 
     char * body;
     size_t body_length;

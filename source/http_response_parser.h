@@ -108,16 +108,18 @@ private:
     }
 
     int on_message_complete(http_parser* parser) {
+        response->set_message_complete();
+
         return 0;
     }
 
     int on_chunk_header(http_parser* parser) {
-        // ?? Don't know when this is used
+        response->set_chunked();
+
         return 0;
     }
 
     int on_chunk_complete(http_parser* parser) {
-        // ?? Don't know when this is used
         return 0;
     }
 
@@ -159,7 +161,7 @@ private:
     }
 
     static int on_chunk_complete_callback(http_parser* parser) {
-        return ((HttpResponseParser*)parser->data)->on_chunk_complete_callback(parser);
+        return ((HttpResponseParser*)parser->data)->on_chunk_complete(parser);
     }
 
     HttpResponse* response;

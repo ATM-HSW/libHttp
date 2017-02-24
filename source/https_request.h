@@ -257,7 +257,7 @@ public:
                 return NULL;
             }
 
-            if (_response->is_body_complete()) {
+            if (_response->is_message_complete()) {
                 break;
             }
         }
