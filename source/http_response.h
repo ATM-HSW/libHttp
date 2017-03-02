@@ -172,7 +172,6 @@ private:
 
     char tolower(char c) {
         if(('A' <= c) && (c <= 'Z')) {
-            printf("toLower %c %c\n", c, 'a' + (c - 'A'));
             return 'a' + (c - 'A');
         }
 

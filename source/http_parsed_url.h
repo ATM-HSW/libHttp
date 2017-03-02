@@ -27,14 +27,14 @@ public:
         http_parser_parse_url(url, strlen(url), false, &parsed_url);
 
         for (size_t ix = 0; ix < UF_MAX; ix++) {
-            const char* value;
+            char* value;
             if (parsed_url.field_set & (1 << ix)) {
-                value = (const char*)calloc(parsed_url.field_data[ix].len + 1, 1);
+                value = (char*)calloc(parsed_url.field_data[ix].len + 1, 1);
                 memcpy((void*)value, url + parsed_url.field_data[ix].off,
                        parsed_url.field_data[ix].len);
             }
             else {
-                value = (const char*)calloc(1, 1);
+                value = (char*)calloc(1, 1);
             }
 
             switch ((http_parser_url_fields)ix) {
@@ -59,6 +59,11 @@ public:
                 _port = 80;
             }
         }
+
+        if (strcmp(_path, "") == 0) {
+            _path = (char*)calloc(2, 1);
+            _path[0] = '/';
+        }
     }
 
     ~ParsedUrl() {
@@ -70,19 +75,19 @@ public:
     }
 
     uint16_t port() const { return _port; }
-    const char* schema() const { return _schema; }
-    const char* host() const { return _host; }
-    const char* path() const { return _path; }
-    const char* query() const { return _query; }
-    const char* userinfo() const { return _userinfo; }
+    char* schema() const { return _schema; }
+    char* host() const { return _host; }
+    char* path() const { return _path; }
+    char* query() const { return _query; }
+    char* userinfo() const { return _userinfo; }
 
 private:
     uint16_t _port;
-    const char* _schema;
-    const char* _host;
-    const char* _path;
-    const char* _query;
-    const char* _userinfo;
+    char* _schema;
+    char* _host;
+    char* _path;
+    char* _query;
+    char* _userinfo;
 };
 
 #endif // _MBED_HTTP_PARSED_URL_H_
