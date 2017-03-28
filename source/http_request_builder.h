@@ -46,19 +46,19 @@ public:
         }
     }
 
-    char* build(const void* body, size_t body_size) {
+    char* build(const void* body, size_t body_size, size_t &size) {
         const char* method_str = http_method_str(method);
 
-        if (body_size > 0) {
+        if (method == HTTP_POST || method == HTTP_PUT || method == HTTP_DELETE || body_size > 0) {
             char buffer[10];
             snprintf(buffer, 10, "%d", body_size);
             set_header("Content-Length", string(buffer));
         }
 
-        size_t size = 0;
+        size = 0;
 
         // first line is METHOD PATH+QUERY HTTP/1.1\r\n
-        size += strlen(method_str) + 1 + strlen(parsed_url->path()) + strlen(parsed_url->query()) + 1 + 8 + 2;
+        size += strlen(method_str) + 1 + strlen(parsed_url->path()) + (strlen(parsed_url->query()) ? strlen(parsed_url->query()) + 1 : 0) + 1 + 8 + 2;
 
         // after that we'll do the headers
         typedef map<string, string>::iterator it_type;
@@ -80,14 +80,12 @@ public:
         char* req = (char*)calloc(size + 1, 1);
         char* originalReq = req;
 
-        if (strcmp(parsed_url->query(), "") == 0) {
-            sprintf(req, "%s %s HTTP/1.1\r\n", method_str, parsed_url->path());
-            req += strlen(method_str) + 1 + strlen(parsed_url->path()) + 1 + 8 + 2;
-        }
-        else {
+        if (strlen(parsed_url->query())) {
             sprintf(req, "%s %s?%s HTTP/1.1\r\n", method_str, parsed_url->path(), parsed_url->query());
-            req += strlen(method_str) + 1 + strlen(parsed_url->path()) + 1 + strlen(parsed_url->query()) + 1 + 8 + 2;
+        } else {
+            sprintf(req, "%s %s%s HTTP/1.1\r\n", method_str, parsed_url->path(), parsed_url->query());
         }
+        req += strlen(method_str) + 1 + strlen(parsed_url->path()) + (strlen(parsed_url->query()) ? strlen(parsed_url->query()) + 1 : 0) + 1 + 8 + 2;
 
         typedef map<string, string>::iterator it_type;
         for(it_type it = headers.begin(); it != headers.end(); it++) {
@@ -100,7 +98,7 @@ public:
         req += 2;
 
         if (body_size > 0) {
-            sprintf(req, "%s", (char*)body);
+            memcpy(req, body, body_size);
         }
         req += body_size;
 

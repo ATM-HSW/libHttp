@@ -196,8 +196,8 @@ public:
             return NULL;
         }
 
-        char* request = _request_builder->build(body, body_size);
-        size_t request_size = strlen(request);
+        size_t request_size = 0;
+        char* request = _request_builder->build(body, body_size, request_size);
 
         ret = mbedtls_ssl_write(&_ssl, (const unsigned char *) request, request_size);
 

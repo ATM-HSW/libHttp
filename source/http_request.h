@@ -104,8 +104,8 @@ public:
             return NULL;
         }
 
-        char* request = request_builder->build(body, body_size);
-        size_t request_size = strlen(request);
+        size_t request_size = 0;
+        char* request = request_builder->build(body, body_size, request_size);
 
         nsapi_size_or_error_t send_result = socket.send(request, request_size);
 
