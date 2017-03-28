@@ -54,6 +54,39 @@ HttpRequest* req = new HttpRequest(network, HTTP_GET, "http://pathtolargefile.co
 req->send(NULL, 0, body_callback);
 ```
 
+## Socket re-use
+
+By default the library opens a new socket per request. This is wasteful, especially when dealing with TLS requests. You can re-use sockets like this:
+
+### HTTP
+
+```cpp
+TCPSocket* socket = new TCPSocket();
+
+nsapi_error_t open_result = socket->open(network);
+// check open_result
+
+nsapi_error_t connect_result = socket->connect("httpbin.org", 80);
+// check connect_result
+
+// Pass in `socket`, instead of `network` as first argument
+HttpRequest* req = new HttpRequest(socket, HTTP_GET, "http://httpbin.org/status/418");
+```
+
+### HTTPS
+
+```cpp
+TLSSocket* socket = new TLSSocket(network, "httpbin.org", 443, SSL_CA_PEM);
+socket->set_debug(true);
+if (socket->connect() != 0) {
+    printf("TLS Connect failed %d\n", socket->error());
+    return 1;
+}
+
+// Pass in `socket`, instead of `network` as first argument, and omit the `SSL_CA_PEM` argument
+HttpsRequest* get_req = new HttpsRequest(socket, HTTP_GET, "https://httpbin.org/status/418");
+```
+
 ## Tested on
 
 * K64F with Ethernet.
