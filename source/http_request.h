@@ -30,7 +30,6 @@
 /**
  * @todo:
  *      - Userinfo parameter is not handled
- *      - Allow socket re-use
  */
 
 
@@ -57,6 +56,32 @@ public:
 
         parsed_url = new ParsedUrl(url);
         request_builder = new HttpRequestBuilder(method, parsed_url);
+
+        socket = new TCPSocket();
+        we_created_socket = true;
+    }
+
+    /**
+     * HttpRequest Constructor
+     *
+     * @param[in] aSocket An open TCPSocket
+     * @param[in] aMethod HTTP method to use
+     * @param[in] url URL to the resource
+     * @param[in] aBodyCallback Callback on which to retrieve chunks of the response body.
+                                If not set, the complete body will be allocated on the HttpResponse object,
+                                which might use lots of memory.
+    */
+    HttpRequest(TCPSocket* aSocket, http_method aMethod, const char* url, Callback<void(const char *at, size_t length)> aBodyCallback = 0)
+        : socket(aSocket), method(aMethod), body_callback(aBodyCallback)
+    {
+        error = 0;
+        response = NULL;
+        network = NULL;
+
+        parsed_url = new ParsedUrl(url);
+        request_builder = new HttpRequestBuilder(method, parsed_url);
+
+        we_created_socket = false;
     }
 
     /**
@@ -76,6 +101,10 @@ public:
         if (request_builder) {
             delete request_builder;
         }
+
+        if (socket && we_created_socket) {
+            delete socket;
+        }
     }
 
     /**
@@ -90,24 +119,24 @@ public:
 
         error = 0;
 
-        TCPSocket socket;
+        if (we_created_socket) {
+            nsapi_error_t open_result = socket->open(network);
+            if (open_result != 0) {
+                error = open_result;
+                return NULL;
+            }
 
-        nsapi_error_t open_result = socket.open(network);
-        if (open_result != 0) {
-            error = open_result;
-            return NULL;
-        }
-
-        nsapi_error_t connection_result = socket.connect(parsed_url->host(), parsed_url->port());
-        if (connection_result != 0) {
-            error = connection_result;
-            return NULL;
+            nsapi_error_t connection_result = socket->connect(parsed_url->host(), parsed_url->port());
+            if (connection_result != 0) {
+                error = connection_result;
+                return NULL;
+            }
         }
 
         size_t request_size = 0;
         char* request = request_builder->build(body, body_size, request_size);
 
-        nsapi_size_or_error_t send_result = socket.send(request, request_size);
+        nsapi_size_or_error_t send_result = socket->send(request, request_size);
 
         free(request);
 
@@ -126,7 +155,7 @@ public:
 
         // TCPSocket::recv is called until we don't have any data anymore
         nsapi_size_or_error_t recv_ret;
-        while ((recv_ret = socket.recv(recv_buffer, HTTP_RECEIVE_BUFFER_SIZE)) > 0) {
+        while ((recv_ret = socket->recv(recv_buffer, HTTP_RECEIVE_BUFFER_SIZE)) > 0) {
 
             // Pass the chunk into the http_parser
             size_t nparsed = parser.execute((const char*)recv_buffer, recv_ret);
@@ -154,8 +183,10 @@ public:
         // Free the receive buffer
         free(recv_buffer);
 
-        // Close the socket
-        socket.close();
+        if (we_created_socket) {
+            // Close the socket
+            socket->close();
+        }
 
         return response;
     }
@@ -184,6 +215,7 @@ public:
 
 private:
     NetworkInterface* network;
+    TCPSocket* socket;
     http_method method;
     Callback<void(const char *at, size_t length)> body_callback;
 
@@ -191,6 +223,8 @@ private:
 
     HttpRequestBuilder* request_builder;
     HttpResponse* response;
+
+    bool we_created_socket;
 
     nsapi_error_t error;
 };
