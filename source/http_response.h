@@ -111,6 +111,11 @@ public:
     }
 
     void set_body(const char *at, size_t length) {
+        // Connection: close, could not specify Content-Length, nor chunked... So do it like this:
+        if (expected_content_length == 0 && length > 0) {
+            is_chunked = true;
+        }
+
         // only malloc when this fn is called, so we don't alloc when body callback's are enabled
         if (body == NULL && !is_chunked) {
             body = (char*)malloc(expected_content_length);
