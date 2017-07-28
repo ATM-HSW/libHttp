@@ -27,7 +27,7 @@
 #include "http_parser.h"
 #include "http_response.h"
 #include "http_request_builder.h"
-#include "http_response_parser.h"
+#include "http_request_parser.h"
 #include "http_parsed_url.h"
 
 #include "mbedtls/platform.h"

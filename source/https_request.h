@@ -24,7 +24,7 @@
 #include "http_parser.h"
 #include "http_response.h"
 #include "http_request_builder.h"
-#include "http_response_parser.h"
+#include "http_request_parser.h"
 #include "http_parsed_url.h"
 #include "tls_socket.h"
 
@@ -157,7 +157,7 @@ public:
         // Create a response object
         _response = new HttpResponse();
         // And a response parser
-        HttpResponseParser parser(_response, _body_callback);
+        HttpParser parser(_response, HTTP_RESPONSE, _body_callback);
 
         // Set up a receive buffer (on the heap)
         uint8_t* recv_buffer = (uint8_t*)malloc(HTTP_RECEIVE_BUFFER_SIZE);

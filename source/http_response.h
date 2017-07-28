@@ -61,6 +61,22 @@ public:
         return status_message;
     }
 
+    void set_url(string a_url) {
+        url = a_url;
+    }
+
+    string get_url() {
+        return url;
+    }
+
+    void set_method(http_method a_method) {
+        method = a_method;
+    }
+
+    http_method get_method() {
+        return method;
+    }
+
     void set_header_field(string field) {
         concat_header_value = false;
 
@@ -185,6 +201,8 @@ private:
 
     int status_code;
     string status_message;
+    string url;
+    http_method method;
 
     vector<string*> header_fields;
     vector<string*> header_values;
@@ -202,4 +220,5 @@ private:
     size_t body_length;
     size_t body_offset;
 };
+
 #endif
