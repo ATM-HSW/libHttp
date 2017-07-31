@@ -34,7 +34,7 @@
 
 
 /**
- * \brief HttpRequest implements the logic for interacting with HTTPS servers.
+ * \brief HttpRequest implements the logic for interacting with HTTP servers.
  */
 class HttpRequest {
 public:
