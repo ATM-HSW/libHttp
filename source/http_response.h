@@ -142,7 +142,13 @@ public:
                 body = (char*)malloc(length);
             }
             else {
+                char* original_body = body;
                 body = (char*)realloc(body, body_offset + length);
+                if (body == NULL) {
+                    printf("[HttpResponse] realloc for %d bytes failed\n", body_offset + length);
+                    free(original_body);
+                    return;
+                }
             }
         }
 

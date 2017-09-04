@@ -161,7 +161,7 @@ public:
         if (_debug) mbedtls_printf("TLS connection to %s:%d established\r\n", _hostname, _port);
 
         const uint32_t buf_size = 1024;
-        char *buf = new char[buf_size];
+        char buf[buf_size] = { 0 };
         mbedtls_x509_crt_info(buf, buf_size, "\r    ",
                         mbedtls_ssl_get_peer_cert(&_ssl));
         if (_debug) mbedtls_printf("Server certificate:\r\n%s\r", buf);
