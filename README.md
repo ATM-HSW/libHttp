@@ -41,7 +41,18 @@ printf("body is:\n%s\n", response->get_body().c_str());
 delete request;
 ```
 
-## Dealing with large body
+## Memory usage
+
+Small requests where the body of the response is cached by the library (like the one found in main-http.cpp), require ~4K of RAM. When the request is finished they require ~1.5K of RAM, depending on the size of the response. This applies both to HTTP and HTTPS. If you need to handle requests that return a large response body, see 'Dealing with large body'.
+
+HTTPS requires additional memory. On FRDM-K64F:
+
+* TLS handshake requires 53K of heap space.
+* Keeping TLS socket open requires 43K of heap space.
+
+This means that you cannot use HTTPS on devices with less than 128K of memory, as you also need to reserve memory for the stack and network interface.
+
+### Dealing with large body
 
 By default the library will store the full request body on the heap. This works well for small responses, but you'll run out of memory when receiving a large response body. To mitigate this you can pass in a callback as the last argument to the request constructor. This callback will be called whenever a chunk of the body is received. You can set the request chunk size in the `HTTP_RECEIVE_BUFFER_SIZE` macro (see `mbed_lib.json` for the definition) although it also depends on the buffer size of the underlying network connection.
 
@@ -91,3 +102,4 @@ HttpsRequest* get_req = new HttpsRequest(socket, HTTP_GET, "https://httpbin.org/
 
 * K64F with Ethernet.
 * NUCLEO_F411RE with ESP8266.
+* ODIN-W2 with WiFi.
