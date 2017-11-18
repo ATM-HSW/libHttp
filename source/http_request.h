@@ -32,6 +32,9 @@
  *      - Userinfo parameter is not handled
  */
 
+#ifndef HTTP_RECEIVE_BUFFER_SIZE
+#define HTTP_RECEIVE_BUFFER_SIZE 8 * 1024
+#endif
 
 /**
  * \brief HttpRequest implements the logic for interacting with HTTP servers.

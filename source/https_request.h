@@ -28,6 +28,10 @@
 #include "http_parsed_url.h"
 #include "tls_socket.h"
 
+#ifndef HTTP_RECEIVE_BUFFER_SIZE
+#define HTTP_RECEIVE_BUFFER_SIZE 8 * 1024
+#endif
+
 /**
  * \brief HttpsRequest implements the logic for interacting with HTTPS servers.
  */
