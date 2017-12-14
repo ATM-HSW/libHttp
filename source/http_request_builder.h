@@ -28,7 +28,19 @@ public:
     HttpRequestBuilder(http_method a_method, ParsedUrl* a_parsed_url)
         : method(a_method), parsed_url(a_parsed_url)
     {
-        set_header("Host", string(parsed_url->host()));
+        string host(parsed_url->host());
+
+        char port_str[10];
+        sprintf(port_str, ":%d", parsed_url->port());
+
+        if (strcmp(parsed_url->schema(), "http") == 0 && parsed_url->port() != 80) {
+            host += string(port_str);
+        }
+        else if (strcmp(parsed_url->schema(), "https") == 0 && parsed_url->port() != 443) {
+            host += string(port_str);
+        }
+
+        set_header("Host", host);
     }
 
     /**
