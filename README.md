@@ -61,8 +61,8 @@ void body_callback(const char* data, size_t data_len) {
     // do something with the data
 }
 
-HttpRequest* req = new HttpRequest(network, HTTP_GET, "http://pathtolargefile.com");
-req->send(NULL, 0, body_callback);
+HttpRequest* req = new HttpRequest(network, HTTP_GET, "http://pathtolargefile.com", &body_callback);
+req->send(NULL, 0);
 ```
 
 ## Socket re-use

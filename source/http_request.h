@@ -139,12 +139,27 @@ public:
         size_t request_size = 0;
         char* request = request_builder->build(body, body_size, request_size);
 
-        nsapi_size_or_error_t send_result = socket->send(request, request_size);
+        nsapi_size_or_error_t total_send_count = 0;
+        while (total_send_count < request_size) {
+            nsapi_size_or_error_t send_result = socket->send(request + total_send_count, request_size - total_send_count);
+
+            if (send_result < 0) {
+                total_send_count = send_result;
+                break;
+            }
+
+            if (send_result == 0) {
+                break;
+            }
+
+            total_send_count += send_result;
+        }
+
 
         free(request);
 
-        if (send_result != request_size) {
-            error = send_result;
+        if (total_send_count < 0) {
+            error = total_send_count;
             return NULL;
         }
 
