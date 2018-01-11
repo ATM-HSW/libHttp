@@ -52,7 +52,7 @@ HTTPS requires additional memory. On FRDM-K64F:
 
 This means that you cannot use HTTPS on devices with less than 128K of memory, as you also need to reserve memory for the stack and network interface.
 
-### Dealing with large body
+### Dealing with large response body
 
 By default the library will store the full request body on the heap. This works well for small responses, but you'll run out of memory when receiving a large response body. To mitigate this you can pass in a callback as the last argument to the request constructor. This callback will be called whenever a chunk of the body is received. You can set the request chunk size in the `HTTP_RECEIVE_BUFFER_SIZE` macro (see `mbed_lib.json` for the definition) although it also depends on the buffer size of the underlying network connection.
 
@@ -63,6 +63,22 @@ void body_callback(const char* data, size_t data_len) {
 
 HttpRequest* req = new HttpRequest(network, HTTP_GET, "http://pathtolargefile.com", &body_callback);
 req->send(NULL, 0);
+```
+
+### Dealing with a large request body
+
+If you cannot load the full request into memory, you can pass a callback into the `send` function. Through this callback you can feed in chunks of the request body. This is very useful if you want to send files from a file system.
+
+```cpp
+const void * get_chunk(size_t* out_size) {
+    // set the value of out_size (via *out_size = 10) to the size of the buffer
+    // return the buffer
+
+    // if you don't have any more data, set *out_size to 0
+}
+
+HttpRequest* req = new HttpRequest(network, HTTP_POST, "http://my_api.com/upload");
+req->send(callback(&get_chunk));
 ```
 
 ## Socket re-use
@@ -103,3 +119,6 @@ HttpsRequest* get_req = new HttpsRequest(socket, HTTP_GET, "https://httpbin.org/
 * K64F with Ethernet.
 * NUCLEO_F411RE with ESP8266.
 * ODIN-W2 with WiFi.
+* K64F with Atmel 6LoWPAN shield.
+
+But this should work with any Mbed OS 5 device that implements the `NetworkInterface` API.
