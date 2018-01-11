@@ -112,36 +112,160 @@ public:
 
     /**
      * Execute the request and receive the response.
+     * This adds a Content-Length header to the request (when body_size is set), and sends the data to the server.
+     * @param body Pointer to the body to be sent
+     * @param body_size Size of the body to be sent
+     * @return An HttpResponse pointer on success, or NULL on failure.
+     *         See get_error() for the error code.
      */
     HttpResponse* send(const void* body = NULL, nsapi_size_t body_size = 0) {
-        if (response != NULL) {
-            // already executed this response
-            error = -2100; // @todo, make a lookup table with errors
+        nsapi_size_or_error_t ret = open_socket();
+
+        if (ret != NSAPI_ERROR_OK) {
+            error = ret;
             return NULL;
-        }
-
-        error = 0;
-
-        if (we_created_socket) {
-            nsapi_error_t open_result = socket->open(network);
-            if (open_result != 0) {
-                error = open_result;
-                return NULL;
-            }
-
-            nsapi_error_t connection_result = socket->connect(parsed_url->host(), parsed_url->port());
-            if (connection_result != 0) {
-                error = connection_result;
-                return NULL;
-            }
         }
 
         size_t request_size = 0;
         char* request = request_builder->build(body, body_size, request_size);
 
+        ret = send_buffer(request, request_size);
+
+        free(request);
+
+        if (ret < 0) {
+            error = ret;
+            return NULL;
+        }
+
+        return create_http_response();
+    }
+
+    /**
+     * Execute the request and receive the response.
+     * This sends the request through chunked-encoding.
+     * @param body_cb Callback which generates the next chunk of the request
+     * @return An HttpResponse pointer on success, or NULL on failure.
+     *         See get_error() for the error code.
+     */
+    HttpResponse* send(Callback<const void*(size_t*)> body_cb) {
+
+        nsapi_error_t ret;
+
+        if ((ret = open_socket()) != NSAPI_ERROR_OK) {
+            error = ret;
+            return NULL;
+        }
+
+        set_header("Transfer-Encoding", "chunked");
+
+        size_t request_size = 0;
+        char* request = request_builder->build(NULL, 0, request_size);
+
+        // first... send this request headers without the body
+        nsapi_size_or_error_t total_send_count = send_buffer(request, request_size);
+
+        if (total_send_count < 0) {
+            free(request);
+            error = total_send_count;
+            return NULL;
+        }
+
+        // ok... now it's time to start sending chunks...
+        while (1) {
+            size_t size;
+            const void *buffer = body_cb(&size);
+
+            if (size == 0) break;
+
+            // so... size in HEX, \r\n, data, \r\n again
+            char size_buff[10]; // if sending length of more than 8 digits, you have another problem on a microcontroller...
+            size_t size_buff_size = sprintf(size_buff, "%X\r\n", size);
+            if ((total_send_count = send_buffer(size_buff, size_buff_size)) < 0) {
+                free(request);
+                error = total_send_count;
+                return NULL;
+            }
+
+            // now send the normal buffer... and then \r\n at the end
+            total_send_count = send_buffer((char*)buffer, size);
+            if (total_send_count < 0) {
+                free(request);
+                error = total_send_count;
+                return NULL;
+            }
+
+            // and... \r\n
+            const char* rn = "\r\n";
+            if ((total_send_count = send_buffer((char*)rn, 2)) < 0) {
+                free(request);
+                error = total_send_count;
+                return NULL;
+            }
+        }
+
+        // finalize...?
+        const char* fin = "0\r\n\r\n";
+        if ((total_send_count = send_buffer((char*)fin, strlen(fin))) < 0) {
+            free(request);
+            error = total_send_count;
+            return NULL;
+        }
+
+        free(request);
+
+        return create_http_response();
+    }
+
+    /**
+     * Set a header for the request.
+     *
+     * The 'Host' and 'Content-Length' headers are set automatically.
+     * Setting the same header twice will overwrite the previous entry.
+     *
+     * @param[in] key Header key
+     * @param[in] value Header value
+     */
+    void set_header(string key, string value) {
+        request_builder->set_header(key, value);
+    }
+
+    /**
+     * Get the error code.
+     *
+     * When send() fails, this error is set.
+     */
+    nsapi_error_t get_error() {
+        return error;
+    }
+
+private:
+    nsapi_error_t open_socket() {
+        if (response != NULL) {
+            // already executed this response
+            return -2100; // @todo, make a lookup table with errors
+        }
+
+
+        if (we_created_socket) {
+            nsapi_error_t open_result = socket->open(network);
+            if (open_result != NSAPI_ERROR_OK) {
+                return open_result;
+            }
+
+            nsapi_error_t connection_result = socket->connect(parsed_url->host(), parsed_url->port());
+            if (connection_result != NSAPI_ERROR_OK) {
+                return connection_result;
+            }
+        }
+
+        return NSAPI_ERROR_OK;
+    }
+
+    nsapi_size_or_error_t send_buffer(char* buffer, size_t buffer_size) {
         nsapi_size_or_error_t total_send_count = 0;
-        while (total_send_count < request_size) {
-            nsapi_size_or_error_t send_result = socket->send(request + total_send_count, request_size - total_send_count);
+        while (total_send_count < buffer_size) {
+            nsapi_size_or_error_t send_result = socket->send(buffer + total_send_count, buffer_size - total_send_count);
 
             if (send_result < 0) {
                 total_send_count = send_result;
@@ -155,14 +279,10 @@ public:
             total_send_count += send_result;
         }
 
+        return total_send_count;
+    }
 
-        free(request);
-
-        if (total_send_count < 0) {
-            error = total_send_count;
-            return NULL;
-        }
-
+    HttpResponse* create_http_response() {
         // Create a response object
         response = new HttpResponse();
         // And a response parser
@@ -209,29 +329,7 @@ public:
         return response;
     }
 
-    /**
-     * Set a header for the request.
-     *
-     * The 'Host' and 'Content-Length' headers are set automatically.
-     * Setting the same header twice will overwrite the previous entry.
-     *
-     * @param[in] key Header key
-     * @param[in] value Header value
-     */
-    void set_header(string key, string value) {
-        request_builder->set_header(key, value);
-    }
 
-    /**
-     * Get the error code.
-     *
-     * When send() fails, this error is set.
-     */
-    nsapi_error_t get_error() {
-        return error;
-    }
-
-private:
     NetworkInterface* network;
     TCPSocket* socket;
     http_method method;

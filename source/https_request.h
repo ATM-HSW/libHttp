@@ -121,91 +121,102 @@ public:
      *         See get_error() for the error code.
      */
     HttpResponse* send(const void* body = NULL, nsapi_size_t body_size = 0) {
-        // not tried to connect before?
-        if (_tlssocket->error() != 0) {
-            _error = _tlssocket->error();
+        nsapi_size_or_error_t ret = open_socket();
+
+        if (ret != NSAPI_ERROR_OK) {
+            _error = ret;
             return NULL;
         }
-
-        bool socket_was_open = _tlssocket->connected();
-
-        if (!socket_was_open) {
-            nsapi_error_t r = _tlssocket->connect();
-            if (r != 0) {
-                _error = r;
-                return NULL;
-            }
-        }
-
-        int ret;
 
         size_t request_size = 0;
         char* request = _request_builder->build(body, body_size, request_size);
 
-        ret = mbedtls_ssl_write(_tlssocket->get_ssl_context(), (const unsigned char *) request, request_size);
+        ret = send_buffer((const unsigned char*)request, request_size);
 
         free(request);
 
         if (ret < 0) {
-            if (ret != MBEDTLS_ERR_SSL_WANT_READ &&
-                ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
-                print_mbedtls_error("mbedtls_ssl_write", ret);
-                onError(_tlssocket->get_tcp_socket(), -1 );
-            }
-            else {
-                _error = ret;
-            }
+            _error = ret;
             return NULL;
         }
 
-        // Create a response object
-        _response = new HttpResponse();
-        // And a response parser
-        HttpParser parser(_response, HTTP_RESPONSE, _body_callback);
+        return create_http_response();
+    }
 
-        // Set up a receive buffer (on the heap)
-        uint8_t* recv_buffer = (uint8_t*)malloc(HTTP_RECEIVE_BUFFER_SIZE);
+    /**
+     * Execute the HTTPS request.
+     * This sends the request through chunked-encoding.
+     * @param body_cb Callback which generates the next chunk of the request
+     * @return An HttpResponse pointer on success, or NULL on failure.
+     *         See get_error() for the error code.
+     */
+    HttpResponse* send(Callback<const void*(size_t*)> body_cb) {
 
-        /* Read data out of the socket */
-        while ((ret = mbedtls_ssl_read(_tlssocket->get_ssl_context(), (unsigned char *) recv_buffer, HTTP_RECEIVE_BUFFER_SIZE)) > 0) {
-            // Don't know if this is actually needed, but OK
-            size_t _bpos = static_cast<size_t>(ret);
-            recv_buffer[_bpos] = 0;
+        nsapi_error_t ret;
 
-            size_t nparsed = parser.execute((const char*)recv_buffer, _bpos);
-            if (nparsed != _bpos) {
-                print_mbedtls_error("parser_error", nparsed);
-                // parser error...
-                _error = -2101;
-                free(recv_buffer);
+        if ((ret = open_socket()) != NSAPI_ERROR_OK) {
+            _error = ret;
+            return NULL;
+        }
+
+        set_header("Transfer-Encoding", "chunked");
+
+        size_t request_size = 0;
+        char* request = _request_builder->build(NULL, 0, request_size);
+
+        // first... send this request headers without the body
+        nsapi_size_or_error_t total_send_count = send_buffer((unsigned char*)request, request_size);
+
+        if (total_send_count < 0) {
+            free(request);
+            _error = total_send_count;
+            return NULL;
+        }
+
+        // ok... now it's time to start sending chunks...
+        while (1) {
+            size_t size;
+            const void *buffer = body_cb(&size);
+
+            if (size == 0) break;
+
+            // so... size in HEX, \r\n, data, \r\n again
+            char size_buff[10]; // if sending length of more than 8 digits, you have another problem on a microcontroller...
+            size_t size_buff_size = sprintf(size_buff, "%X\r\n", size);
+            if ((total_send_count = send_buffer((const unsigned char*)size_buff, size_buff_size)) < 0) {
+                free(request);
+                _error = total_send_count;
                 return NULL;
             }
 
-            if (_response->is_message_complete()) {
-                break;
+            // now send the normal buffer... and then \r\n at the end
+            total_send_count = send_buffer((const unsigned char*)buffer, size);
+            if (total_send_count < 0) {
+                free(request);
+                _error = total_send_count;
+                return NULL;
+            }
+
+            // and... \r\n
+            const char* rn = "\r\n";
+            if ((total_send_count = send_buffer((const unsigned char*)rn, 2)) < 0) {
+                free(request);
+                _error = total_send_count;
+                return NULL;
             }
         }
-        if (ret < 0) {
-            if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
-                print_mbedtls_error("mbedtls_ssl_read", ret);
-                onError(_tlssocket->get_tcp_socket(), -1 );
-            }
-            else {
-                _error = ret;
-            }
-            free(recv_buffer);
+
+        // finalize...?
+        const char* fin = "0\r\n\r\n";
+        if ((total_send_count = send_buffer((const unsigned char*)fin, strlen(fin))) < 0) {
+            free(request);
+            _error = total_send_count;
             return NULL;
         }
 
-        parser.finish();
+        free(request);
 
-        if (!socket_was_open) {
-            _tlssocket->get_tcp_socket()->close();
-        }
-
-        free(recv_buffer);
-
-        return _response;
+        return create_http_response();
     }
 
     /**
@@ -264,6 +275,100 @@ protected:
         _error = error;
     }
 
+    nsapi_error_t onErrorAndReturn(TCPSocket *s, int error) {
+        s->close();
+        return error;
+    }
+
+private:
+    nsapi_error_t open_socket() {
+        // not tried to connect before?
+        if (_tlssocket->error() != 0) {
+            return _tlssocket->error();
+        }
+
+        _socket_was_open = _tlssocket->connected();
+
+        if (!_socket_was_open) {
+            nsapi_error_t r = _tlssocket->connect();
+            if (r != NSAPI_ERROR_OK) {
+                return r;
+            }
+        }
+
+        return NSAPI_ERROR_OK;
+    }
+
+    nsapi_size_or_error_t send_buffer(const unsigned char *buffer, size_t buffer_size) {
+        nsapi_size_or_error_t ret = mbedtls_ssl_write(_tlssocket->get_ssl_context(), (const unsigned char *) buffer, buffer_size);
+
+        if (ret < 0) {
+            if (ret != MBEDTLS_ERR_SSL_WANT_READ &&
+                ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
+                print_mbedtls_error("mbedtls_ssl_write", ret);
+                return onErrorAndReturn(_tlssocket->get_tcp_socket(), -1 );
+            }
+            else {
+                return ret;
+            }
+        }
+
+        return NSAPI_ERROR_OK;
+    }
+
+    HttpResponse* create_http_response() {
+        nsapi_size_or_error_t ret;
+
+        // Create a response object
+        _response = new HttpResponse();
+        // And a response parser
+        HttpParser parser(_response, HTTP_RESPONSE, _body_callback);
+
+        // Set up a receive buffer (on the heap)
+        uint8_t* recv_buffer = (uint8_t*)malloc(HTTP_RECEIVE_BUFFER_SIZE);
+
+        /* Read data out of the socket */
+        while ((ret = mbedtls_ssl_read(_tlssocket->get_ssl_context(), (unsigned char *) recv_buffer, HTTP_RECEIVE_BUFFER_SIZE)) > 0) {
+            // Don't know if this is actually needed, but OK
+            size_t _bpos = static_cast<size_t>(ret);
+            recv_buffer[_bpos] = 0;
+
+            size_t nparsed = parser.execute((const char*)recv_buffer, _bpos);
+            if (nparsed != _bpos) {
+                print_mbedtls_error("parser_error", nparsed);
+                // parser error...
+                _error = -2101;
+                free(recv_buffer);
+                return NULL;
+            }
+
+            if (_response->is_message_complete()) {
+                break;
+            }
+        }
+        if (ret < 0) {
+            if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
+                print_mbedtls_error("mbedtls_ssl_read", ret);
+                onError(_tlssocket->get_tcp_socket(), -1 );
+            }
+            else {
+                _error = ret;
+            }
+            free(recv_buffer);
+            return NULL;
+        }
+
+        parser.finish();
+
+        if (!_socket_was_open) {
+            _tlssocket->get_tcp_socket()->close();
+        }
+
+        free(recv_buffer);
+
+        return _response;
+    }
+
 protected:
     TLSSocket* _tlssocket;
     bool _we_created_the_socket;
@@ -272,6 +377,8 @@ protected:
     ParsedUrl* _parsed_url;
     HttpRequestBuilder* _request_builder;
     HttpResponse* _response;
+
+    bool _socket_was_open;
 
     nsapi_error_t _error;
     bool _debug;

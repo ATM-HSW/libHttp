@@ -58,10 +58,12 @@ public:
         }
     }
 
-    char* build(const void* body, size_t body_size, size_t &size) {
+    char* build(const void* body, size_t body_size, size_t &size, bool skip_content_length = false) {
         const char* method_str = http_method_str(method);
 
-        if (method == HTTP_POST || method == HTTP_PUT || method == HTTP_DELETE || body_size > 0) {
+        bool is_chunked = has_header("Transfer-Encoding", "chunked");
+
+        if (!is_chunked && (method == HTTP_POST || method == HTTP_PUT || method == HTTP_DELETE || body_size > 0)) {
             char buffer[10];
             snprintf(buffer, 10, "%d", body_size);
             set_header("Content-Length", string(buffer));
@@ -82,11 +84,13 @@ public:
         // then the body, first an extra newline
         size += 2;
 
-        // body
-        size += body_size;
+        if (!is_chunked) {
+            // body
+            size += body_size;
 
-        // extra newline
-        size += 2;
+            // extra newline
+            size += 2;
+        }
 
         // Now let's print it
         char* req = (char*)calloc(size + 1, 1);
@@ -114,8 +118,10 @@ public:
         }
         req += body_size;
 
-        sprintf(req, "\r\n");
-        req += 2;
+        if (!is_chunked) {
+            sprintf(req, "\r\n");
+            req += 2;
+        }
 
         // Uncomment to debug...
         // printf("----- BEGIN REQUEST -----\n");
@@ -126,6 +132,19 @@ public:
     }
 
 private:
+    bool has_header(const char* key, const char* value = NULL) {
+        typedef map<string, string>::iterator it_type;
+        for(it_type it = headers.begin(); it != headers.end(); it++) {
+            if (strcmp(it->first.c_str(), key) == 0) { // key matches
+                if (value == NULL || (strcmp(it->second.c_str(), value) == 0)) { // value is NULL or matches
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
     http_method method;
     ParsedUrl* parsed_url;
     map<string, string> headers;
