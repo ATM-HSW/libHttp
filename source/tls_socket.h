@@ -24,6 +24,7 @@
 #include <string>
 #include <vector>
 #include <map>
+#include "TCPSocket.h"
 #include "http_parser.h"
 #include "http_response.h"
 #include "http_request_builder.h"
