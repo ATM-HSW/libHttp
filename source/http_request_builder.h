@@ -87,9 +87,6 @@ public:
         if (!is_chunked) {
             // body
             size += body_size;
-
-            // extra newline
-            size += 2;
         }
 
         // Now let's print it
@@ -117,11 +114,6 @@ public:
             memcpy(req, body, body_size);
         }
         req += body_size;
-
-        if (!is_chunked) {
-            sprintf(req, "\r\n");
-            req += 2;
-        }
 
         // Uncomment to debug...
         // printf("----- BEGIN REQUEST -----\n");
