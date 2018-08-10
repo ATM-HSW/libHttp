@@ -631,10 +631,10 @@ parse_url_char(enum state s, const char ch)
   return s_dead;
 }
 
-size_t http_parser_execute (http_parser *parser,
+uint32_t http_parser_execute (http_parser *parser,
                             const http_parser_settings *settings,
                             const char *data,
-                            size_t len)
+                            uint32_t len)
 {
   char c, ch;
   int8_t unhex_val;
@@ -1536,7 +1536,7 @@ reexecute:
             {
               const char* p_cr;
               const char* p_lf;
-              size_t limit = data + len - p;
+              uint32_t limit = data + len - p;
 
               limit = MIN(limit, HTTP_MAX_HEADER_SIZE);
 
@@ -2160,13 +2160,13 @@ http_parser_settings_init(http_parser_settings *settings)
 
 const char *
 http_errno_name(enum http_errno err) {
-  assert(((size_t) err) < ARRAY_SIZE(http_strerror_tab));
+  assert(((uint32_t) err) < ARRAY_SIZE(http_strerror_tab));
   return http_strerror_tab[err].name;
 }
 
 const char *
 http_errno_description(enum http_errno err) {
-  assert(((size_t) err) < ARRAY_SIZE(http_strerror_tab));
+  assert(((uint32_t) err) < ARRAY_SIZE(http_strerror_tab));
   return http_strerror_tab[err].description;
 }
 
@@ -2257,7 +2257,7 @@ http_parse_host(const char * buf, struct http_parser_url *u, int found_at) {
   enum http_host_state s;
 
   const char *p;
-  size_t buflen = u->field_data[UF_HOST].off + u->field_data[UF_HOST].len;
+  uint32_t buflen = u->field_data[UF_HOST].off + u->field_data[UF_HOST].len;
 
   assert(u->field_set & (1 << UF_HOST));
 
@@ -2340,7 +2340,7 @@ http_parser_url_init(struct http_parser_url *u) {
 }
 
 int
-http_parser_parse_url(const char *buf, size_t buflen, int is_connect,
+http_parser_parse_url(const char *buf, uint32_t buflen, int is_connect,
                       struct http_parser_url *u)
 {
   enum state s;

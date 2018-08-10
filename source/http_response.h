@@ -42,7 +42,7 @@ public:
             free(body);
         }
 
-        for (size_t ix = 0; ix < header_fields.size(); ix++) {
+        for (uint32_t ix = 0; ix < header_fields.size(); ix++) {
             delete header_fields[ix];
             delete header_values[ix];
         }
@@ -106,15 +106,15 @@ public:
     }
 
     void set_headers_complete() {
-        for (size_t ix = 0; ix < header_fields.size(); ix++) {
+        for (uint32_t ix = 0; ix < header_fields.size(); ix++) {
             if (strcicmp(header_fields[ix]->c_str(), "content-length") == 0) {
-                expected_content_length = (size_t)atoi(header_values[ix]->c_str());
+                expected_content_length = (uint32_t)atoi(header_values[ix]->c_str());
                 break;
             }
         }
     }
 
-    size_t get_headers_length() {
+    uint32_t get_headers_length() {
         return header_fields.size();
     }
 
@@ -126,7 +126,7 @@ public:
         return header_values;
     }
 
-    void set_body(const char *at, size_t length) {
+    void set_body(const char *at, uint32_t length) {
         // Connection: close, could not specify Content-Length, nor chunked... So do it like this:
         if (expected_content_length == 0 && length > 0) {
             is_chunked = true;
@@ -145,7 +145,6 @@ public:
                 char* original_body = body;
                 body = (char*)realloc(body, body_offset + length);
                 if (body == NULL) {
-                    printf("[HttpResponse] realloc for %d bytes failed\n", body_offset + length);
                     free(original_body);
                     return;
                 }
@@ -166,11 +165,11 @@ public:
         return s;
     }
 
-    void increase_body_length(size_t length) {
+    void increase_body_length(uint32_t length) {
         body_length += length;
     }
 
-    size_t get_body_length() {
+    uint32_t get_body_length() {
         return body_offset;
     }
 
@@ -216,15 +215,15 @@ private:
     bool concat_header_field;
     bool concat_header_value;
 
-    size_t expected_content_length;
+    uint32_t expected_content_length;
 
     bool is_chunked;
 
     bool is_message_completed;
 
     char * body;
-    size_t body_length;
-    size_t body_offset;
+    uint32_t body_length;
+    uint32_t body_offset;
 };
 
 #endif

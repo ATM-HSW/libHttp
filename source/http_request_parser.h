@@ -24,7 +24,7 @@
 class HttpParser {
 public:
 
-    HttpParser(HttpResponse* a_response, http_parser_type parser_type, Callback<void(const char *at, size_t length)> a_body_callback = 0)
+    HttpParser(HttpResponse* a_response, http_parser_type parser_type, Callback<void(const char *at, uint32_t length)> a_body_callback = 0)
         : response(a_response), body_callback(a_body_callback)
     {
         settings = new http_parser_settings();
@@ -55,7 +55,7 @@ public:
         }
     }
 
-    size_t execute(const char* buffer, size_t buffer_size) {
+    uint32_t execute(const char* buffer, uint32_t buffer_size) {
         return http_parser_execute(parser, settings, buffer, buffer_size);
     }
 
@@ -69,25 +69,25 @@ private:
         return 0;
     }
 
-    int on_url(http_parser* parser, const char *at, size_t length) {
+    int on_url(http_parser* parser, const char *at, uint32_t length) {
         string s(at, length);
         response->set_url(s);
         return 0;
     }
 
-    int on_status(http_parser* parser, const char *at, size_t length) {
+    int on_status(http_parser* parser, const char *at, uint32_t length) {
         string s(at, length);
         response->set_status(parser->status_code, s);
         return 0;
     }
 
-    int on_header_field(http_parser* parser, const char *at, size_t length) {
+    int on_header_field(http_parser* parser, const char *at, uint32_t length) {
         string s(at, length);
         response->set_header_field(s);
         return 0;
     }
 
-    int on_header_value(http_parser* parser, const char *at, size_t length) {
+    int on_header_value(http_parser* parser, const char *at, uint32_t length) {
         string s(at, length);
         response->set_header_value(s);
         return 0;
@@ -99,7 +99,7 @@ private:
         return 0;
     }
 
-    int on_body(http_parser* parser, const char *at, size_t length) {
+    int on_body(http_parser* parser, const char *at, uint32_t length) {
         response->increase_body_length(length);
 
         if (body_callback) {
@@ -132,19 +132,19 @@ private:
         return ((HttpParser*)parser->data)->on_message_begin(parser);
     }
 
-    static int on_url_callback(http_parser* parser, const char *at, size_t length) {
+    static int on_url_callback(http_parser* parser, const char *at, uint32_t length) {
         return ((HttpParser*)parser->data)->on_url(parser, at, length);
     }
 
-    static int on_status_callback(http_parser* parser, const char *at, size_t length) {
+    static int on_status_callback(http_parser* parser, const char *at, uint32_t length) {
         return ((HttpParser*)parser->data)->on_status(parser, at, length);
     }
 
-    static int on_header_field_callback(http_parser* parser, const char *at, size_t length) {
+    static int on_header_field_callback(http_parser* parser, const char *at, uint32_t length) {
         return ((HttpParser*)parser->data)->on_header_field(parser, at, length);
     }
 
-    static int on_header_value_callback(http_parser* parser, const char *at, size_t length) {
+    static int on_header_value_callback(http_parser* parser, const char *at, uint32_t length) {
         return ((HttpParser*)parser->data)->on_header_value(parser, at, length);
     }
 
@@ -152,7 +152,7 @@ private:
         return ((HttpParser*)parser->data)->on_headers_complete(parser);
     }
 
-    static int on_body_callback(http_parser* parser, const char *at, size_t length) {
+    static int on_body_callback(http_parser* parser, const char *at, uint32_t length) {
         return ((HttpParser*)parser->data)->on_body(parser, at, length);
     }
 
@@ -169,7 +169,7 @@ private:
     }
 
     HttpResponse* response;
-    Callback<void(const char *at, size_t length)> body_callback;
+    Callback<void(const char *at, uint32_t length)> body_callback;
     http_parser* parser;
     http_parser_settings* settings;
 };

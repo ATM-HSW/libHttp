@@ -29,7 +29,7 @@ extern "C" {
 #define HTTP_PARSER_VERSION_MINOR 7
 #define HTTP_PARSER_VERSION_PATCH 1
 
-typedef unsigned int size_t;
+#include "stdlib.h"
 
 #if defined(_WIN32) && !defined(__MINGW32__) && \
   (!defined(_MSC_VER) || _MSC_VER<1600) && !defined(__WINE__)
@@ -87,7 +87,7 @@ typedef struct http_parser_settings http_parser_settings;
  * many times for each string. E.G. you might get 10 callbacks for "on_url"
  * each providing just a few characters more data.
  */
-typedef int (*http_data_cb) (http_parser*, const char *at, size_t length);
+typedef int (*http_data_cb) (http_parser*, const char *at, uint32_t length);
 typedef int (*http_cb) (http_parser*);
 
 
@@ -390,10 +390,10 @@ void http_parser_settings_init(http_parser_settings *settings);
 
 /* Executes the parser. Returns number of parsed bytes. Sets
  * `parser->http_errno` on error. */
-size_t http_parser_execute(http_parser *parser,
+uint32_t http_parser_execute(http_parser *parser,
                            const http_parser_settings *settings,
                            const char *data,
-                           size_t len);
+                           uint32_t len);
 
 
 /* If http_should_keep_alive() in the on_headers_complete or
@@ -417,7 +417,7 @@ const char *http_errno_description(enum http_errno err);
 void http_parser_url_init(struct http_parser_url *u);
 
 /* Parse a URL; return nonzero on failure */
-int http_parser_parse_url(const char *buf, size_t buflen,
+int http_parser_parse_url(const char *buf, uint32_t buflen,
                           int is_connect,
                           struct http_parser_url *u);
 

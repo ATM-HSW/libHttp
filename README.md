@@ -59,7 +59,7 @@ This means that you cannot use HTTPS on devices with less than 128K of memory, a
 By default the library will store the full request body on the heap. This works well for small responses, but you'll run out of memory when receiving a large response body. To mitigate this you can pass in a callback as the last argument to the request constructor. This callback will be called whenever a chunk of the body is received. You can set the request chunk size in the `HTTP_RECEIVE_BUFFER_SIZE` macro (see `mbed_lib.json` for the definition) although it also depends on the buffer size of the underlying network connection.
 
 ```cpp
-void body_callback(const char* data, size_t data_len) {
+void body_callback(const char* data, uint32_t data_len) {
     // do something with the data
 }
 
@@ -72,7 +72,7 @@ req->send(NULL, 0);
 If you cannot load the full request into memory, you can pass a callback into the `send` function. Through this callback you can feed in chunks of the request body. This is very useful if you want to send files from a file system.
 
 ```cpp
-const void * get_chunk(size_t* out_size) {
+const void * get_chunk(uint32_t* out_size) {
     // set the value of out_size (via *out_size = 10) to the size of the buffer
     // return the buffer
 
