@@ -1,6 +1,6 @@
 # HTTP and HTTPS library for mbed OS 5
 
-This library is used to make HTTP and HTTPS calls from mbed OS 5 applications.
+This library is used to make HTTP and HTTPS calls from Mbed OS 5 applications.
 
 ## HTTP Request API
 
@@ -23,7 +23,7 @@ delete request; // also clears out the response
 ## HTTPS Request API
 
 ```cpp
-// pass in the root certificates that you trust, there is no central CA registry in mbed OS
+// pass in the root certificates that you trust, there is no central CA registry in Mbed OS
 const char SSL_CA_PEM[] = "-----BEGIN CERTIFICATE-----\n"
     /* rest of the CA root certificates */;
 
@@ -114,6 +114,61 @@ if (socket->connect() != 0) {
 
 // Pass in `socket`, instead of `network` as first argument, and omit the `SSL_CA_PEM` argument
 HttpsRequest* get_req = new HttpsRequest(socket, HTTP_GET, "https://httpbin.org/status/418");
+```
+
+**Note:** For HTTPS, if you are using a **K64F**, **K22F**, or **ODIN-W2** target, you will need to include the following `mbedtls_entropy_config.h` file to enable Mbed TLS entropy (placed in the root directory of your application):
+
+```cpp
+/* Enable entropy for K64F, K22F, ODIN-W2. This means entropy is disabled for all other targets. */
+/* Do **NOT** deploy this code in production on other targets! */
+/* See https://tls.mbed.org/kb/how-to/add-entropy-sources-to-entropy-pool */
+#if defined(TARGET_K64F) || defined(TARGET_K22F) || defined(TARGET_UBLOX_EVK_ODIN_W2)
+#undef MBEDTLS_NO_DEFAULT_ENTROPY_SOURCES
+#undef MBEDTLS_TEST_NULL_ENTROPY
+#endif
+
+#if !defined(MBEDTLS_ENTROPY_HARDWARE_ALT) && \
+    !defined(MBEDTLS_ENTROPY_NV_SEED) && !defined(MBEDTLS_TEST_NULL_ENTROPY)
+#error "This hardware does not have an entropy source."
+#endif /* !MBEDTLS_ENTROPY_HARDWARE_ALT && !MBEDTLS_ENTROPY_NV_SEED &&
+        * !MBEDTLS_TEST_NULL_ENTROPY */
+
+#if !defined(MBEDTLS_SHA1_C)
+#define MBEDTLS_SHA1_C
+#endif /* !MBEDTLS_SHA1_C */
+
+#if !defined(MBEDTLS_RSA_C)
+#define MBEDTLS_RSA_C
+#endif /* !MBEDTLS_RSA_C */
+
+/*
+ *  This value is sufficient for handling 2048 bit RSA keys.
+ *
+ *  Set this value higher to enable handling larger keys, but be aware that this
+ *  will increase the stack usage.
+ */
+#define MBEDTLS_MPI_MAX_SIZE        1024
+
+#define MBEDTLS_MPI_WINDOW_SIZE     1
+```
+
+You will also need to enable a custom user config file macro in an `mbed_app.json` file (placed in the root of your application):
+
+```json
+{
+    "macros": ["MBEDTLS_USER_CONFIG_FILE=\"mbedtls_entropy_config.h\"",
+               "MBEDTLS_TEST_NULL_ENTROPY", "MBEDTLS_NO_DEFAULT_ENTROPY_SOURCES" ]
+}
+```
+
+You will also need to include an `mbedtls_config.h` file in the root directory of your application: [`mbedtls_config.h`](https://os.mbed.com/teams/sandbox/code/http-example/file/5ad8f931e4ff/mbedtls_config.h)
+
+For all other targets, you will need the following macro present in an `mbed_app.json` file (placed in the root of your application):
+
+```json
+{
+    "macros": ["MBEDTLS_TEST_NULL_ENTROPY", "MBEDTLS_NO_DEFAULT_ENTROPY_SOURCES" ]
+}
 ```
 
 ## Tested on
