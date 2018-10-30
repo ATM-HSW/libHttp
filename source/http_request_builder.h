@@ -58,14 +58,14 @@ public:
         }
     }
 
-    char* build(const void* body, unsigned int body_size, uint32_t &size, bool skip_content_length = false) {
+    char* build(const void* body, uint32_t body_size, uint32_t &size, bool skip_content_length = false) {
         const char* method_str = http_method_str(method);
 
         bool is_chunked = has_header("Transfer-Encoding", "chunked");
 
         if (!is_chunked && (method == HTTP_POST || method == HTTP_PUT || method == HTTP_DELETE || body_size > 0)) {
             char buffer[10];
-            snprintf(buffer, 10, "%d", body_size);
+            snprintf(buffer, 10, "%lu", body_size);
             set_header("Content-Length", string(buffer));
         }
 

@@ -20,6 +20,7 @@
  */
 #ifndef http_parser_h
 #define http_parser_h
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -28,8 +29,6 @@ extern "C" {
 #define HTTP_PARSER_VERSION_MAJOR 2
 #define HTTP_PARSER_VERSION_MINOR 7
 #define HTTP_PARSER_VERSION_PATCH 1
-
-#include "stdlib.h"
 
 #if defined(_WIN32) && !defined(__MINGW32__) && \
   (!defined(_MSC_VER) || _MSC_VER<1600) && !defined(__WINE__)

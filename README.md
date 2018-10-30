@@ -43,16 +43,26 @@ delete request;
 
 **Note:** You can get the root CA for a domain easily from Firefox. Click on the green padlock, click *More information > Security > View certificate > Details*. Select the top entry in the 'Certificate Hierarchy' and click *Export...*. This gives you a PEM file. Add the content of the PEM file to your root CA list ([here's an image](img/root-ca-selection.png)).
 
+### Mbed TLS Entropy configuration
+
+If your target does not have a built-in TRNG, or other entropy sources, add the following macros to your `mbed_app.json` file to disable entropy:
+
+```json
+{
+    "macros": [
+        "MBEDTLS_TEST_NULL_ENTROPY",
+        "MBEDTLS_NO_DEFAULT_ENTROPY_SOURCES"
+    ]
+}
+```
+
+Note that this is **not** secure, and you should not deploy this device into production with this configuration.
+
 ## Memory usage
 
 Small requests where the body of the response is cached by the library (like the one found in main-http.cpp), require ~4K of RAM. When the request is finished they require ~1.5K of RAM, depending on the size of the response. This applies both to HTTP and HTTPS. If you need to handle requests that return a large response body, see 'Dealing with large body'.
 
-HTTPS requires additional memory. On FRDM-K64F:
-
-* TLS handshake requires 53K of heap space.
-* Keeping TLS socket open requires 43K of heap space.
-
-This means that you cannot use HTTPS on devices with less than 128K of memory, as you also need to reserve memory for the stack and network interface.
+HTTPS requires additional memory: on FRDM-K64F about 50K of heap space (at its peak). This means that you cannot use HTTPS on devices with less than 128K of memory, as you also need to reserve memory for the stack and network interface.
 
 ### Dealing with large response body
 
@@ -105,70 +115,32 @@ HttpRequest* req = new HttpRequest(socket, HTTP_GET, "http://httpbin.org/status/
 ### HTTPS
 
 ```cpp
-TLSSocket* socket = new TLSSocket(network, "httpbin.org", 443, SSL_CA_PEM);
-socket->set_debug(true);
-if (socket->connect() != 0) {
-    printf("TLS Connect failed %d\n", socket->error());
-    return 1;
-}
+TLSSocket* socket = new TLSSocket();
+
+nsapi_error_t r;
+// make sure to check the return values for the calls below (should return NSAPI_ERROR_OK)
+r = socket->open(network);
+r = socket->set_root_ca_cert(SSL_CA_PEM);
+r = socket->connect("httpbin.org", 443);
 
 // Pass in `socket`, instead of `network` as first argument, and omit the `SSL_CA_PEM` argument
 HttpsRequest* get_req = new HttpsRequest(socket, HTTP_GET, "https://httpbin.org/status/418");
 ```
 
-**Note:** For HTTPS, if you are using a **K64F**, **K22F**, or **ODIN-W2** target, you will need to include the following `mbedtls_entropy_config.h` file to enable Mbed TLS entropy (placed in the root directory of your application):
+## Request logging
+
+To make debugging easier you can log the raw request body that goes over the line. This also works with chunked encoding.
 
 ```cpp
-/* Enable entropy for K64F, K22F, ODIN-W2. This means entropy is disabled for all other targets. */
-/* Do **NOT** deploy this code in production on other targets! */
-/* See https://tls.mbed.org/kb/how-to/add-entropy-sources-to-entropy-pool */
-#if defined(TARGET_K64F) || defined(TARGET_K22F) || defined(TARGET_UBLOX_EVK_ODIN_W2)
-#undef MBEDTLS_NO_DEFAULT_ENTROPY_SOURCES
-#undef MBEDTLS_TEST_NULL_ENTROPY
-#endif
+uint8_t *request_buffer = (uint8_t*)calloc(2048, 1);
+req->set_request_log_buffer(request_buffer, 2048);
 
-#if !defined(MBEDTLS_ENTROPY_HARDWARE_ALT) && \
-    !defined(MBEDTLS_ENTROPY_NV_SEED) && !defined(MBEDTLS_TEST_NULL_ENTROPY)
-#error "This hardware does not have an entropy source."
-#endif /* !MBEDTLS_ENTROPY_HARDWARE_ALT && !MBEDTLS_ENTROPY_NV_SEED &&
-        * !MBEDTLS_TEST_NULL_ENTROPY */
-
-#if !defined(MBEDTLS_SHA1_C)
-#define MBEDTLS_SHA1_C
-#endif /* !MBEDTLS_SHA1_C */
-
-#if !defined(MBEDTLS_RSA_C)
-#define MBEDTLS_RSA_C
-#endif /* !MBEDTLS_RSA_C */
-
-/*
- *  This value is sufficient for handling 2048 bit RSA keys.
- *
- *  Set this value higher to enable handling larger keys, but be aware that this
- *  will increase the stack usage.
- */
-#define MBEDTLS_MPI_MAX_SIZE        1024
-
-#define MBEDTLS_MPI_WINDOW_SIZE     1
-```
-
-You will also need to enable a custom user config file macro in an `mbed_app.json` file (placed in the root of your application):
-
-```json
-{
-    "macros": ["MBEDTLS_USER_CONFIG_FILE=\"mbedtls_entropy_config.h\"",
-               "MBEDTLS_TEST_NULL_ENTROPY", "MBEDTLS_NO_DEFAULT_ENTROPY_SOURCES" ]
+// after the request is done:
+printf("\n----- Request buffer -----\n");
+for (size_t ix = 0; ix < req->get_request_log_buffer_length(); ix++) {
+    printf("%02x ", request_buffer[ix]);
 }
-```
-
-You will also need to include an `mbedtls_config.h` file in the root directory of your application: [`mbedtls_config.h`](https://os.mbed.com/teams/sandbox/code/http-example/file/5ad8f931e4ff/mbedtls_config.h)
-
-For all other targets, you will need the following macro present in an `mbed_app.json` file (placed in the root of your application):
-
-```json
-{
-    "macros": ["MBEDTLS_TEST_NULL_ENTROPY", "MBEDTLS_NO_DEFAULT_ENTROPY_SOURCES" ]
-}
+printf("\n");
 ```
 
 ## Tested on
@@ -177,5 +149,6 @@ For all other targets, you will need the following macro present in an `mbed_app
 * NUCLEO_F411RE with ESP8266.
 * ODIN-W2 with WiFi.
 * K64F with Atmel 6LoWPAN shield.
+* [Mbed Simulator](https://github.com/janjongboom/mbed-simulator).
 
 But this should work with any Mbed OS 5 device that implements the `NetworkInterface` API.
