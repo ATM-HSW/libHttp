@@ -114,7 +114,7 @@ public:
         }
     }
 
-    size_t get_headers_length() {
+    uint32_t get_headers_length() {
         return header_fields.size();
     }
 
@@ -126,7 +126,7 @@ public:
         return header_values;
     }
 
-    void set_body(const char *at, size_t length) {
+    void set_body(const char *at, uint32_t length) {
         // Connection: close, could not specify Content-Length, nor chunked... So do it like this:
         if (expected_content_length == 0 && length > 0) {
             is_chunked = true;
@@ -166,11 +166,11 @@ public:
         return s;
     }
 
-    void increase_body_length(size_t length) {
+    void increase_body_length(uint32_t length) {
         body_length += length;
     }
 
-    size_t get_body_length() {
+    uint32_t get_body_length() {
         return body_offset;
     }
 
@@ -216,15 +216,15 @@ private:
     bool concat_header_field;
     bool concat_header_value;
 
-    size_t expected_content_length;
+    uint32_t expected_content_length;
 
     bool is_chunked;
 
     bool is_message_completed;
 
     char * body;
-    size_t body_length;
-    size_t body_offset;
+    uint32_t body_length;
+    uint32_t body_offset;
 };
 
 #endif

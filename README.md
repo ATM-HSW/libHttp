@@ -105,15 +105,30 @@ HttpRequest* req = new HttpRequest(socket, HTTP_GET, "http://httpbin.org/status/
 ### HTTPS
 
 ```cpp
-TLSSocket* socket = new TLSSocket(network, "httpbin.org", 443, SSL_CA_PEM);
-socket->set_debug(true);
-if (socket->connect() != 0) {
-    printf("TLS Connect failed %d\n", socket->error());
-    return 1;
-}
+TLSSocket* socket = new TLSSocket();
+// make sure to check the return values for the calls below (should return NSAPI_ERROR_OK)
+socket->open(network);
+socket->set_root_ca_cert(SSL_CA_PEM);
+socket->connect("httpbin.org", 443);
 
 // Pass in `socket`, instead of `network` as first argument, and omit the `SSL_CA_PEM` argument
 HttpsRequest* get_req = new HttpsRequest(socket, HTTP_GET, "https://httpbin.org/status/418");
+```
+
+## Request logging
+
+To make debugging easier you can log the raw request body that goes over the line. This also works with chunked encoding.
+
+```cpp
+uint8_t *request_buffer = (uint8_t*)calloc(2048, 1);
+req->set_request_log_buffer(request_buffer, 2048);
+
+// after the request is done:
+printf("\n----- Request buffer -----\n");
+for (size_t ix = 0; ix < req->get_request_log_buffer_length(); ix++) {
+    printf("%02x ", request_buffer[ix]);
+}
+printf("\n");
 ```
 
 ## Tested on
@@ -122,5 +137,6 @@ HttpsRequest* get_req = new HttpsRequest(socket, HTTP_GET, "https://httpbin.org/
 * NUCLEO_F411RE with ESP8266.
 * ODIN-W2 with WiFi.
 * K64F with Atmel 6LoWPAN shield.
+* Mbed Simulator.
 
 But this should work with any Mbed OS 5 device that implements the `NetworkInterface` API.
