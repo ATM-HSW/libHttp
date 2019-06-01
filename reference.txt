@@ -1,0 +1,3 @@
+https://falo42@os.mbed.com/teams/sandbox/code/mbed-http/
+https://os.mbed.com/teams/sandbox/code/mbed-http/
+Files at revision 34:6daf67a96a91
