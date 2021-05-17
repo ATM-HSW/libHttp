@@ -52,7 +52,7 @@ public:
 
         _port = parsed_url.port;
         if (!_port) {
-            if (strcmp(_schema, "https") == 0) {
+            if (strcmp(_schema, "https") == 0 || strcmp(_schema, "wss") == 0) {
                 _port = 443;
             }
             else {
