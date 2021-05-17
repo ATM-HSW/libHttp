@@ -30,7 +30,7 @@ public:
             char* value;
             if (parsed_url.field_set & (1 << ix)) {
                 value = (char*)calloc(parsed_url.field_data[ix].len + 1, 1);
-                memcpy((void*)value, url + parsed_url.field_data[ix].off,
+                memcpy(value, url + parsed_url.field_data[ix].off,
                        parsed_url.field_data[ix].len);
             }
             else {
@@ -45,7 +45,7 @@ public:
                 case UF_USERINFO: _userinfo = value; break;
                 default:
                     // PORT is already parsed, FRAGMENT is not relevant for HTTP requests
-                    free((void*)value);
+                    free(value);
                     break;
             }
         }
@@ -61,17 +61,18 @@ public:
         }
 
         if (strcmp(_path, "") == 0) {
+            free(_path);
             _path = (char*)calloc(2, 1);
             _path[0] = '/';
         }
     }
 
     ~ParsedUrl() {
-        if (_schema) free((void*)_schema);
-        if (_host) free((void*)_host);
-        if (_path) free((void*)_path);
-        if (_query) free((void*)_query);
-        if (_userinfo) free((void*)_userinfo);
+        if (_schema) free(_schema);
+        if (_host) free(_host);
+        if (_path) free(_path);
+        if (_query) free(_query);
+        if (_userinfo) free(_userinfo);
     }
 
     uint16_t port() const { return _port; }
