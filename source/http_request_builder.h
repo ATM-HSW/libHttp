@@ -39,6 +39,12 @@ public:
         else if (strcmp(parsed_url->schema(), "https") == 0 && parsed_url->port() != 443) {
             host += string(port_str);
         }
+        else if (strcmp(parsed_url->schema(), "ws") == 0 && parsed_url->port() != 80) {
+            host += string(port_str);
+        }
+        else if (strcmp(parsed_url->schema(), "wss") == 0 && parsed_url->port() != 443) {
+            host += string(port_str);
+        }
 
         set_header("Host", host);
     }
