@@ -87,52 +87,6 @@ public:
         _we_created_socket = false;
     }
 
-    /**
-     * HttpRequest Constructor
-     *
-     * @param[in] network The network interface
-     * @param[in] method HTTP method to use
-     * @param[in] url Parsed URL to the resource
-     * @param[in] bodyCallback Callback on which to retrieve chunks of the response body.
-                               If not set, the complete body will be allocated on the HttpResponse object,
-                               which might use lots of memory.
-    */
-    HttpRequest(NetworkInterface* network, http_method method, ParsedUrl* url, Callback<void(const char *at, uint32_t length)> bodyCallback = 0)
-        : HttpRequestBase(NULL, bodyCallback)
-    {
-        _error = 0;
-        _response = NULL;
-
-        _parsed_url = url;
-        _request_builder = new HttpRequestBuilder(method, _parsed_url);
-
-        _socket = new TCPSocket();
-        ((TCPSocket*)_socket)->open(network);
-        _we_created_socket = true;
-    }
-
-    /**
-     * HttpRequest Constructor
-     *
-     * @param[in] socket An open TCPSocket
-     * @param[in] method HTTP method to use
-     * @param[in] url URL to the resource
-     * @param[in] bodyCallback Callback on which to retrieve chunks of the response body.
-                                If not set, the complete body will be allocated on the HttpResponse object,
-                                which might use lots of memory.
-    */
-    HttpRequest(TCPSocket* socket, http_method method, ParsedUrl* url, Callback<void(const char *at, uint32_t length)> bodyCallback = 0)
-        : HttpRequestBase(socket, bodyCallback)
-    {
-        _error = 0;
-        _response = NULL;
-
-        _parsed_url = url;
-        _request_builder = new HttpRequestBuilder(method, _parsed_url);
-
-        _we_created_socket = false;
-    }
-
     virtual ~HttpRequest() {
     }
 
