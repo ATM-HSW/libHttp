@@ -45,6 +45,14 @@ public:
         http_parser_init(parser, parser_type);
         parser->data = (void*)this;
     }
+    
+    void setHeaderCompleteCallBack(Callback<void(HttpResponse* response)> a_headercomplete_callback) {
+      this->headercomplete_callback = a_headercomplete_callback;
+    }
+    
+    void setBodyCallBack(Callback<void(const char *at, uint32_t length)> a_body_callback) {
+      this->body_callback = a_body_callback;
+    }
 
     ~HttpParser() {
         if (parser) {
@@ -96,6 +104,10 @@ private:
     int on_headers_complete(http_parser* parser) {
         response->set_headers_complete();
         response->set_method((http_method)parser->method);
+      
+        if(headercomplete_callback) {
+          headercomplete_callback(response);
+        }
         return 0;
     }
 
@@ -170,6 +182,7 @@ private:
 
     HttpResponse* response;
     Callback<void(const char *at, uint32_t length)> body_callback;
+    Callback<void(HttpResponse* response)> headercomplete_callback;
     http_parser* parser;
     http_parser_settings* settings;
 };
