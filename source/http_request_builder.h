@@ -71,7 +71,7 @@ public:
 
         if (!is_chunked && (method == HTTP_POST || method == HTTP_PUT || method == HTTP_DELETE || body_size > 0)) {
             char buffer[10];
-            snprintf(buffer, 10, "%lu", body_size);
+            snprintf(buffer, 10, "%u", body_size);
             set_header("Content-Length", string(buffer));
         }
 
