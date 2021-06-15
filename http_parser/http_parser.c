@@ -867,6 +867,7 @@ reexecute:
         break;
       }
 
+      // handles first digit of 3digit status code
       case s_res_first_status_code:
       {
         if (!IS_NUM(ch)) {
@@ -882,6 +883,9 @@ reexecute:
         break;
       }
 
+      // handles second/third digit of 3digit status code
+      // after status code a space character has to follow
+      // a reason phrase may follow
       case s_res_status_code:
       {
         if (!IS_NUM(ch)) {
@@ -915,7 +919,10 @@ reexecute:
 
       case s_res_status_start:
       {
+        // no reason phrase is following - store status code
         if (ch == CR) {
+          MARK(status);
+          CALLBACK_DATA(status);
           UPDATE_STATE(s_res_line_almost_done);
           break;
         }

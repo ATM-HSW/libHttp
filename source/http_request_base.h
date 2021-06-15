@@ -291,7 +291,8 @@ private:
         HttpParser parser(_response, HTTP_RESPONSE, _body_callback);
 
         // Set up a receive buffer (on the heap)
-        uint8_t* recv_buffer = (uint8_t*)malloc(HTTP_RECEIVE_BUFFER_SIZE);
+//        uint8_t* recv_buffer = (uint8_t*)malloc(HTTP_RECEIVE_BUFFER_SIZE);
+        uint8_t* recv_buffer = (uint8_t*)calloc(HTTP_RECEIVE_BUFFER_SIZE, 1);
 
         // Socket::recv is called until we don't have any data anymore
         nsapi_size_or_error_t recv_ret;
