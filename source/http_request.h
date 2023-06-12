@@ -39,70 +39,66 @@
  */
 class HttpRequest : public HttpRequestBase {
 public:
-  friend class HttpRequestBase;
+    friend class HttpRequestBase;
 
-  /**
-   * HttpRequest Constructor
-   *
-   * @param[in] network The network interface
-   * @param[in] method HTTP method to use
-   * @param[in] url URL to the resource
-   * @param[in] bodyCallback Callback on which to retrieve chunks of the response body.
-                             If not set, the complete body will be allocated on the HttpResponse object,
-                             which might use lots of memory.
-  */
-  HttpRequest(NetworkInterface* network, http_method method, const char* url, Callback<void(const char *at, uint32_t length)> bodyCallback = 0)
-      : HttpRequestBase(NULL, bodyCallback)
-  {
-    _error = 0;
-    _response = NULL;
+    /**
+     * HttpRequest Constructor
+     *
+     * @param[in] network The network interface
+     * @param[in] method HTTP method to use
+     * @param[in] url URL to the resource
+     * @param[in] bodyCallback Callback on which to retrieve chunks of the response body.
+                               If not set, the complete body will be allocated on the HttpResponse object,
+                               which might use lots of memory.
+    */
+    HttpRequest(NetworkInterface* network, http_method method, const char* url, Callback<void(const char *at, uint32_t length)> bodyCallback = 0)
+        : HttpRequestBase(NULL, bodyCallback)
+    {
+        _error = 0;
+        _response = NULL;
 
-    _parsed_url = new ParsedUrl(url);
-    _request_builder = new HttpRequestBuilder(method, _parsed_url);
+        _parsed_url = new ParsedUrl(url);
+        _request_builder = new HttpRequestBuilder(method, _parsed_url);
 
-    _socket = new TCPSocket();
-    ((TCPSocket*)_socket)->open(network);
-    _we_created_socket = true;
-  }
+        _socket = new TCPSocket();
+        ((TCPSocket*)_socket)->open(network);
+        network->gethostbyname(_parsed_url->host(), &address);
+        address.set_port(_parsed_url->port());
+        _we_created_socket = true;
+    }
 
-  /**
-   * HttpRequest Constructor
-   *
-   * @param[in] socket An open TCPSocket
-   * @param[in] method HTTP method to use
-   * @param[in] url URL to the resource
-   * @param[in] bodyCallback Callback on which to retrieve chunks of the response body.
-                              If not set, the complete body will be allocated on the HttpResponse object,
-                              which might use lots of memory.
-  */
-  HttpRequest(TCPSocket* socket, http_method method, const char* url, Callback<void(const char *at, uint32_t length)> bodyCallback = 0)
-      : HttpRequestBase(socket, bodyCallback)
-  {
-    _error = 0;
-    _response = NULL;
+    /**
+     * HttpRequest Constructor
+     *
+     * @param[in] socket An open TCPSocket
+     * @param[in] method HTTP method to use
+     * @param[in] url URL to the resource
+     * @param[in] bodyCallback Callback on which to retrieve chunks of the response body.
+                                If not set, the complete body will be allocated on the HttpResponse object,
+                                which might use lots of memory.
+    */
+    HttpRequest(TCPSocket* socket, http_method method, const char* url, Callback<void(const char *at, uint32_t length)> bodyCallback = 0)
+        : HttpRequestBase(socket, bodyCallback)
+    {
+        _error = 0;
+        _response = NULL;
 
-    _parsed_url = new ParsedUrl(url);
-    _request_builder = new HttpRequestBuilder(method, _parsed_url);
 
-    _we_created_socket = false;
-  }
 
-  virtual ~HttpRequest() {
-  }
+        _parsed_url = new ParsedUrl(url);
+        _request_builder = new HttpRequestBuilder(method, _parsed_url);
 
-private:
-  NetworkInterface* _network;
+        _we_created_socket = false;
+    }
+
+    virtual ~HttpRequest() {
+    }
 
 protected:
 
-  virtual nsapi_error_t connect_socket(char *host, uint16_t port) {
-    if(!_we_created_socket)
-      return NSAPI_ERROR_PARAMETER;
-    SocketAddress a;
-    _network->get_ip_address(&a);
-    a.set_port(80);
-    return ((TCPSocket*)_socket)->connect(a);
-  }
+    virtual nsapi_error_t connect_socket(SocketAddress addr) {
+        return ((TCPSocket*)_socket)->connect(addr);
+    }
 };
 
 #endif // _HTTP_REQUEST_

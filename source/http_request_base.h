@@ -233,7 +233,7 @@ public:
     }
 
 protected:
-    virtual nsapi_error_t connect_socket(char *host, uint16_t port) = 0;
+    virtual nsapi_error_t connect_socket(SocketAddress addr) = 0;
 
 private:
     nsapi_error_t connect_socket( ) {
@@ -244,7 +244,7 @@ private:
 
 
         if (_we_created_socket) {
-            nsapi_error_t connection_result = connect_socket(_parsed_url->host(), _parsed_url->port());
+            nsapi_error_t connection_result = connect_socket(address);
             if (connection_result != NSAPI_ERROR_OK) {
                 return connection_result;
             }
@@ -261,12 +261,14 @@ private:
             char *buffer_slice = buffer + total_send_count;
             uint32_t buffer_slice_size = buffer_size - total_send_count;
 
+
             // if request buffer was set, copy it there
             if (_request_buffer != NULL && _request_buffer_ix + buffer_slice_size < _request_buffer_size) {
                 memcpy(_request_buffer + _request_buffer_ix, buffer_slice, buffer_slice_size);
                 _request_buffer_ix += buffer_slice_size;
             }
 
+            
             nsapi_size_or_error_t send_result = _socket->send(buffer_slice, buffer_slice_size);
 
             if (send_result < 0) {
@@ -291,8 +293,7 @@ private:
         HttpParser parser(_response, HTTP_RESPONSE, _body_callback);
 
         // Set up a receive buffer (on the heap)
-//        uint8_t* recv_buffer = (uint8_t*)malloc(HTTP_RECEIVE_BUFFER_SIZE);
-        uint8_t* recv_buffer = (uint8_t*)calloc(HTTP_RECEIVE_BUFFER_SIZE, 1);
+        uint8_t* recv_buffer = (uint8_t*)malloc(HTTP_RECEIVE_BUFFER_SIZE);
 
         // Socket::recv is called until we don't have any data anymore
         nsapi_size_or_error_t recv_ret;
@@ -335,6 +336,7 @@ private:
 private:
     Socket* _socket;
     Callback<void(const char *at, uint32_t length)> _body_callback;
+    SocketAddress address;
 
     ParsedUrl* _parsed_url;
 
